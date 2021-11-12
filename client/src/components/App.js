@@ -11,7 +11,8 @@ function App() {
 
   const dashboard = (
     <ContactsProvider>
-      <ConversationsProvider>
+      {/* including id as a prop so we can access the currently logged in user to provide as sender param for sendMessage function. */}
+      <ConversationsProvider id={id}>
         <Dashboard id={id} />
       </ConversationsProvider>
     </ContactsProvider>
