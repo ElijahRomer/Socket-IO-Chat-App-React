@@ -37,7 +37,9 @@ export default function OpenConversation() {
                 // messages have no unique ID so we set the key to the index
                 key={index}
                 className={`my-1 d-flex flex-column ${
-                  message.fromMe ? 'align-self-end' : ''
+                  message.fromMe
+                    ? 'align-self-end align-items-end'
+                    : 'align-items-start'
                 }`}
               >
                 <div

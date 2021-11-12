@@ -1,6 +1,7 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useContactsContext } from './ContactsProvider';
+import { useSocketContext } from './SocketProvider';
 
 const ConversationsContext = React.createContext();
 
@@ -19,6 +20,7 @@ export function ConversationsProvider({ id, children }) {
   );
   const [selectedConversationIndex, setSelectedConversationIndex] = useState(0);
   const { contacts } = useContactsContext();
+  const socket = useSocketContext();
 
   function createConversation(recipients) {
     setConversations((prevConversations) => {
@@ -26,37 +28,52 @@ export function ConversationsProvider({ id, children }) {
     });
   }
 
-  // including sender to ensure that this function is flexible enough to take in messages from our server, as well as take in our own messages
-  function addMessageToConversation({ recipients, text, sender }) {
-    // all we have is an array of recipients- so we need to figure out which conversation to add the message to, OR if we need to create a brand new conversation.
-    setConversations((prevConversations) => {
-      let madeChange = false;
-      const newMessage = { sender, text };
+  // including sender to ensure that this function is flexible enough to take in messages from our server, as well as take in our own messages.
+  // wrapping in useCallBack hook with a dependency on setConversations so that this wont fire infinitely when a message is received-> only once when setConversations is called. And because this is only called within the callback, on rerender it wont be changed.
+  const addMessageToConversation = useCallback(
+    ({ recipients, text, sender }) => {
+      // all we have is an array of recipients- so we need to figure out which conversation to add the message to, OR if we need to create a brand new conversation.
+      setConversations((prevConversations) => {
+        let madeChange = false;
+        const newMessage = { sender, text };
 
-      const newConversations = prevConversations.map((conversation) => {
-        // if the recipient arrays are equal, set madeChange to true, and return the conversation but with a new updated messages array, with the newMessage appended to the end..
-        if (arrayEquality(conversation.recipients, recipients)) {
-          madeChange = true;
-          return {
-            ...conversation,
-            messages: [...conversation.messages, newMessage],
-          };
+        const newConversations = prevConversations.map((conversation) => {
+          // if the recipient arrays are equal, set madeChange to true, and return the conversation but with a new updated messages array, with the newMessage appended to the end..
+          if (arrayEquality(conversation.recipients, recipients)) {
+            madeChange = true;
+            return {
+              ...conversation,
+              messages: [...conversation.messages, newMessage],
+            };
+          }
+          // if the recipient arrays are NOT equal, just return the conversation unchanged.
+          return conversation;
+        });
+
+        if (madeChange) {
+          // if we modified an existing conversation, just return the newConversations array.
+          return newConversations;
+        } else {
+          // if we need to create a new conversation, return a new array with all the previous conversations but with the newly created conversation object pushed on the end.
+          return [...prevConversations, { recipients, message: [newMessage] }];
         }
-        // if the recipient arrays are NOT equal, just return the conversation unchanged.
-        return conversation;
       });
+    },
+    [setConversations]
+  );
 
-      if (madeChange) {
-        // if we modified an existing conversation, just return the newConversation.
-        return newConversations;
-      } else {
-        // if we need to create a new conversation, return a new array with all the previous conversations but with the newly created conversation on the end.
-        return [...prevConversations, { recipients, message: [newMessage] }];
-      }
-    });
-  }
+  useEffect(() => {
+    if (socket == null) return;
+
+    socket.on(`receive-message`, addMessageToConversation);
+
+    // cleanup to remove the event listener... the return statement for useEffect is returned to close connections, prevent memory leaks, etc. and is executed subsequently after the callback passed to useEffect is executed.
+    return () => socket.off('receive-message');
+  }, [socket, addMessageToConversation]);
 
   function sendMessage(recipients, text) {
+    socket.emit(`send-message`, { recipients, text });
+
     addMessageToConversation({ recipients, text, sender: id });
   }
 
