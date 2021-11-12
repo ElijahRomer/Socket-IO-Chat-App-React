@@ -32,6 +32,7 @@ export function ConversationsProvider({ id, children }) {
   // wrapping in useCallBack hook with a dependency on setConversations so that this wont fire infinitely when a message is received-> only once when setConversations is called. And because this is only called within the callback, on rerender it wont be changed.
   const addMessageToConversation = useCallback(
     ({ recipients, text, sender }) => {
+      console.log(`addMessageToConversation fired`);
       // all we have is an array of recipients- so we need to figure out which conversation to add the message to, OR if we need to create a brand new conversation.
       setConversations((prevConversations) => {
         let madeChange = false;
@@ -55,7 +56,7 @@ export function ConversationsProvider({ id, children }) {
           return newConversations;
         } else {
           // if we need to create a new conversation, return a new array with all the previous conversations but with the newly created conversation object pushed on the end.
-          return [...prevConversations, { recipients, message: [newMessage] }];
+          return [...prevConversations, { recipients, messages: [newMessage] }];
         }
       });
     },
@@ -90,6 +91,9 @@ export function ConversationsProvider({ id, children }) {
     });
 
     // adds/ sets up the senderName, as well as the fromMe property in each message
+
+    // ERROR OCCURS HERE
+
     const messages = conversation.messages.map((message) => {
       const contact = contacts.find((contact) => {
         return contact.id === message.sender;

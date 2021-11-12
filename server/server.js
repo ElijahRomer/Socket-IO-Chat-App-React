@@ -1,5 +1,10 @@
 // second parameter passed is the port we want to listen on
-const io = require('socket.io')(5000);
+const io = require('socket.io')(5000, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
+});
 
 io.on('connection', (socket) => {
   // socket.io would ordinarily give a new socket ID every time you connect, but we are using static ID's. So setting the id to a variable allows us to keep static ids... example: if every time you closed your phone and opened it you had a new phone number, it would be pretty useless phone.
